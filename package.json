@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "hangul-js": "^0.2.6",
+    "terser": "^5.9.0"
+  },
+  "scripts": {
+    "prepare-test-data": "node data/transform.mjs"
+  }
+}
