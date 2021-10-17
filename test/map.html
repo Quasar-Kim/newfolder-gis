@@ -34,10 +34,23 @@
             line-height: 2em;
         }
 
-        #result ul {
+        #resultSection h3 {
+            cursor: pointer;
+        }
+
+        #resultSection ul {
             list-style-type: none;
             padding-left: 1em;
         }
+
+        #resultSection * {
+            transition: opacity 0.1s;
+            opacity: 1;
+        }
+
+        #resultSection.progressing * {
+            opacity: 0.5;
+        } 
 
     </style>
 </head>

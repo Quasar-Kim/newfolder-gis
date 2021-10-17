@@ -5,7 +5,7 @@ const worker = new Worker('/src/worker.js', {
 })
 const DBService = Comlink.wrap(worker)
 const db = await new DBService()
-const dbReady = db.init('/data/test').then(() => console.log('DBService initialized'))
+const dbReady = db.init({ dataDir: '/data/test', remoteDB: { url: 'http://localhost:5984/place-detrails', username: 'map-app', password: 'newfolder' } }).then(() => console.log('DBService initialized'))
 
 let lastLocationInfo = {
     timestamp: 0,
@@ -73,6 +73,8 @@ L.Control.SearchBar = L.Control.extend({
                 keywords: new Set(view.keywordsInput.value.split(',').map(t => t.trim()).filter(t => t.length > 0))
             }
 
+            view.resultSection.classList.add('progressing')
+
             // 위치 정보 로드
             const currentPos = await locate()
             await dbReady
@@ -89,17 +91,17 @@ L.Control.SearchBar = L.Control.extend({
                 for (const place of result) {
                     const liElem = document.createElement('li')
                     liElem.innerHTML = `
-                        <li>
-                            <h3>${place.shopName}</h3>
-                            ${place.distance}m | ${place.category} | ${[...place.keywords].join(',')}
-                        </li>
+                        <h3>${place.shopName}</h3>
+                        ${place.distance}m | ${place.category} | ${[...place.keywords].join(',')}
                     `
+                    liElem.setAttribute('data-id', place.id)
                     listElem.append(liElem)
                 }
                 view.resultSection.innerHTML = ''
                 view.resultSection.append(listElem)
             }
-            
+
+            setTimeout(() => view.resultSection.classList.remove('progressing'), 30)
         }
         view.shopNameInput.addEventListener('input', filter)
         view.maxDistanceInput.addEventListener('change', filter)
@@ -108,6 +110,20 @@ L.Control.SearchBar = L.Control.extend({
         
 
         // 디테일 기능
+        async function getDetail(e) {
+            if (e.target.tagName !== 'H3') return
+            const id = e.target.parentElement.getAttribute('data-id')
+
+            // console.log(id)
+            await dbReady
+            const detail = await db.getDetail(id)
+
+            view.resultSection.innerHTML = `
+                <p><button>검색 결과로 돌아가기</button></p>
+                <h2>${detail.name}</h2>
+            `
+        }
+        view.resultSection.addEventListener('click', getDetail)
 
         return rootElem
     }
