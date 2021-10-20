@@ -1,4 +1,5 @@
 import * as Comlink from 'https://jspm.dev/comlink'
+import WordCloud from 'https://jspm.dev/wordcloud'
 
 const worker = new Worker('/src/worker.js', {
     type: 'module'
@@ -26,7 +27,7 @@ function locate() {
                     lat: result.coords.latitude,
                     lon: result.coords.longitude
                 })
-            } , reject)
+            }, reject)
         } else {
             resolve({
                 lat: lastLocationInfo.coords.latitude,
@@ -42,7 +43,7 @@ L.Control.SearchBar = L.Control.extend({
         // 요소 추가
         const rootElem = document.createElement('div')
         rootElem.innerHTML = `
-            <section id="filters" class="card">
+            <section id="filtersSection" class="card">
                 <ul>
                     <li>shopName <input id="shopNameInput"></li>
                     <li>maxDistance(m) <input id="maxDistanceInput"></li>
@@ -56,13 +57,14 @@ L.Control.SearchBar = L.Control.extend({
         `
 
         const view = {
+            filtersSection: rootElem.querySelector('#filtersSection'),
             resultSection: rootElem.querySelector('#resultSection'),
             maxDistanceInput: rootElem.querySelector('#maxDistanceInput'),
             shopNameInput: rootElem.querySelector('#shopNameInput'),
             categoryInput: rootElem.querySelector('#categoryInput'),
             keywordsInput: rootElem.querySelector('#keywordsInput')
         }
-        
+
         // 검색 기능
         async function filter() {
             // 필터 값 가져오기
@@ -92,7 +94,7 @@ L.Control.SearchBar = L.Control.extend({
                     const liElem = document.createElement('li')
                     liElem.innerHTML = `
                         <h3>${place.shopName}</h3>
-                        ${place.distance}m | ${place.category} | ${[...place.keywords].join(',')}
+                        ${place.distance} | ${place.category} | ${[...place.keywords].join(',')}
                     `
                     liElem.setAttribute('data-id', place.id)
                     listElem.append(liElem)
@@ -101,27 +103,84 @@ L.Control.SearchBar = L.Control.extend({
                 view.resultSection.append(listElem)
             }
 
-            setTimeout(() => view.resultSection.classList.remove('progressing'), 30)
+            setTimeout(() => view.resultSection.classList.remove('progressing'), 40)
         }
         view.shopNameInput.addEventListener('input', filter)
         view.maxDistanceInput.addEventListener('change', filter)
         view.categoryInput.addEventListener('change', filter)
         view.keywordsInput.addEventListener('change', filter)
-        
+
 
         // 디테일 기능
         async function getDetail(e) {
             if (e.target.tagName !== 'H3') return
             const id = e.target.parentElement.getAttribute('data-id')
 
+            // 검색창 숨기기
+            view.filtersSection.hidden = true
+
             // console.log(id)
             await dbReady
             const detail = await db.getDetail(id)
 
+            // 지도 포커스
+            const marker = L.marker([detail.lat, detail.lon])
+            marker.addTo(map)
+            map.flyTo([detail.lat, detail.lon], 16)
+
             view.resultSection.innerHTML = `
-                <p><button>검색 결과로 돌아가기</button></p>
+                <p><button id="goBack">검색 결과로 돌아가기</button></p>
                 <h2>${detail.name}</h2>
+                <p><a href=tel:${detail.phone}>${detail.phone}</a></p>
+                <canvas width="400" height="225"></canvas>
             `
+
+            // 뒤로가기 버튼 매핑
+            rootElem.querySelector('#goBack').addEventListener('click', () => {
+                view.filtersSection.hidden = false
+                map.removeLayer(marker)
+                view.resultSection.innerHTML = ''
+                filter()
+            })
+
+            // 워드클라우드 렌더링
+            const renderingCanvas = document.createElement('canvas')
+            renderingCanvas.width = 1280
+            renderingCanvas.height = 720
+
+            WordCloud(renderingCanvas, {
+                list: detail.keywords,
+                gridSize: 50,
+                weightFactor: 16,
+                fontFamily: 'Noto Sans KR',
+                rotateRatio: 0,
+                shape: 'square',
+                color: (word, weight) => {
+                    if (weight > 8) {
+                        return '#00701a'
+                    } else if (weight > 5) {
+                        return '#43a047'
+                    } else {
+                        return '#76d275'
+                    }
+                }
+            })
+
+            let renderingDone = false
+
+            // 작은 캔버스로 미러링
+            const ctx = rootElem.querySelector('canvas').getContext('2d')
+            function mirror() {
+                ctx.drawImage(renderingCanvas, 0, 0, renderingCanvas.width, renderingCanvas.height, 0, 0, ctx.canvas.width, ctx.canvas.height)
+
+                if (!renderingDone) requestAnimationFrame(mirror)
+            }
+            requestAnimationFrame(mirror)
+
+            renderingCanvas.addEventListener('wordcloudstop', () => {
+                renderingDone = true
+                console.log('wordcloud rendering done')
+            })
         }
         view.resultSection.addEventListener('click', getDetail)
 
@@ -144,14 +203,11 @@ L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_toke
 L.control.searchBar({ position: 'topleft' }).addTo(map)
 L.control.zoom({ position: 'topright' }).addTo(map)
 
-async function showMarker() {
-    const { default: data } = await import('/data/test/placeList.js')
-    for (const entry of data) {
-        L.marker([entry.lat, entry.lon]).addTo(map).bindPopup(entry.shopName)
-    }
-
+async function showPosMarker() {
     const userLocation = await locate()
-    L.circleMarker([userLocation.lat, userLocation.lon]).addTo(map)
+    const pos = [userLocation.lat, userLocation.lon]
+    L.circleMarker(pos).addTo(map)
+    map.flyTo(pos)
 }
 
-showMarker()
+showPosMarker()

@@ -1,5 +1,6 @@
 import Hangul from 'https://jspm.dev/hangul-js'
 import haversine from 'https://jspm.dev/haversine-distance'
+import prettyMetric from 'https://jspm.dev/pretty-metric'
 import searchStartIndex from './searchStartIndex.js'
 
 function hasIntersection(set1, set2) {
@@ -77,7 +78,7 @@ export default function filterShops(placeList, { maxDistance = -1, currentPos = 
             filteredResult.push({
                 ...place,
                 shopName: Hangul.assemble(place.shopName),
-                distance: Math.floor(distance)
+                distance: prettyMetric(distance).humanize()
             })
         }
     }
