@@ -3,7 +3,7 @@ import Hangul from 'hangul-js'
 import { minify } from 'terser'
 
 // placeList.json -> placeList.js 변환
-const placeList = JSON.parse(fs.readFileSync('data/placeList.json'))
+const placeList = JSON.parse(fs.readFileSync('data/dev/placeList.json'))
 
 // 1. 한글 분해
 for (let i = 0; i < placeList.length; i++) {
@@ -41,4 +41,4 @@ transformed += ']'
 
 // fs.writeFileSync('data/placeList.transformed.js', transformed)
 const { code: minified } = await minify(transformed)
-fs.writeFileSync('data/placeList.transformed.js', minified)
+fs.writeFileSync('data/dev/placeList.js', minified)

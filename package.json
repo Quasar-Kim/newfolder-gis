@@ -1,9 +1,13 @@
 {
   "devDependencies": {
     "hangul-js": "^0.2.6",
+    "pouchdb-node": "^7.2.2",
     "terser": "^5.9.0"
   },
   "scripts": {
     "prepare-test-data": "node data/transform.mjs"
+  },
+  "dependencies": {
+    "pouchdb": "^7.2.2"
   }
 }

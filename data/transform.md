@@ -5,11 +5,11 @@ table.json에서 정보 추출
 {
     "_id": "#${level_0}",
     "name": "name",
-    "pictures" : [],
-    "phone": "",
-    "keywords": [],
-    "reviews": [],
-    "lat": 1,
-    "lon": 0
+    "pictures" : ["https://via.placeholder.com/480x225.png?text=No+Image"],
+    // "phone": "",
+    // "keywords": [],
+    // "reviews": [],
+    "lat": "lat",
+    "lon": "lon"
 }
 ```

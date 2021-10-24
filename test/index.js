@@ -6,7 +6,7 @@ const worker = new Worker('/src/worker.js', {
 })
 const DBService = Comlink.wrap(worker)
 const db = await new DBService()
-const dbReady = db.init({ dataDir: '/data/test', remoteDB: { url: 'http://localhost:5984/place-detrails', username: 'map-app', password: 'newfolder' } }).then(() => console.log('DBService initialized'))
+const dbReady = db.init({ dataDir: '/data/dev', remoteDB: { url: 'http://localhost:5984/place-detrails', username: 'map-app', password: 'newfolder' } }).then(() => console.log('DBService initialized'))
 
 let lastLocationInfo = {
     timestamp: 0,
@@ -87,6 +87,7 @@ L.Control.SearchBar = L.Control.extend({
             // 검색 결과 표시
             if (result.length === 0) {
                 view.resultSection.innerHTML = `검색 결과가 없어요...`
+                view.resultSection.style.overflow = 'hidden'
             } else {
                 const listElem = document.createElement('ul')
                 listElem.id = 'result'
@@ -101,6 +102,7 @@ L.Control.SearchBar = L.Control.extend({
                 }
                 view.resultSection.innerHTML = ''
                 view.resultSection.append(listElem)
+                view.resultSection.style.overflow = 'scroll'
             }
 
             setTimeout(() => view.resultSection.classList.remove('progressing'), 40)
@@ -126,13 +128,33 @@ L.Control.SearchBar = L.Control.extend({
             // 지도 포커스
             const marker = L.marker([detail.lat, detail.lon])
             marker.addTo(map)
-            map.flyTo([detail.lat, detail.lon], 16)
+            map.flyTo([detail.lat, detail.lon], 15)
+
+            view.resultSection.style.overflow = 'hidden'
 
             view.resultSection.innerHTML = `
-                <p><button id="goBack">검색 결과로 돌아가기</button></p>
-                <h2>${detail.name}</h2>
-                <p><a href=tel:${detail.phone}>${detail.phone}</a></p>
-                <canvas width="400" height="225"></canvas>
+                <span id="goBack">
+                  <span class="material-icons-outlined">navigate_before</span>검색 결과로 돌아가기</span>
+                <elix-carousel id="shopImages">
+                  ${detail.pictures.map(url => `<img src="${url}">`).join('')}
+                </elix-carousel>
+                <section>
+                  <h2 id="detailName">${detail.name}</h2>
+                  <span id="detailCategory">${detail.category}</span>
+                </section>
+                <section>
+                  <div id="phoneInfo">
+                    <span class="material-icons-outlined">phone</span>
+                    <a href="tel:${detail.phone}">${detail.phone}</a>
+                  </div>
+                  <div id="ratingInfo">
+                    <span class="material-icons-outlined">star_border</span>
+                    ${detail.rating} / 5
+                  </div>
+                </section>
+                <section>
+                  <canvas width="420" height="225"></canvas>
+                </section>
             `
 
             // 뒤로가기 버튼 매핑
@@ -151,19 +173,19 @@ L.Control.SearchBar = L.Control.extend({
             WordCloud(renderingCanvas, {
                 list: detail.keywords,
                 gridSize: 50,
-                weightFactor: 16,
+                weightFactor: 3,
                 fontFamily: 'Noto Sans KR',
                 rotateRatio: 0,
                 shape: 'square',
                 color: (word, weight) => {
-                    if (weight > 8) {
-                        return '#00701a'
-                    } else if (weight > 5) {
-                        return '#43a047'
+                    if (weight > 80) {
+                        return '#1565c0';
+                    } else if (weight > 50) {
+                        return '#42a5f5';
                     } else {
-                        return '#76d275'
+                        return '#bbdefb';
                     }
-                }
+                },
             })
 
             let renderingDone = false
@@ -180,6 +202,21 @@ L.Control.SearchBar = L.Control.extend({
             renderingCanvas.addEventListener('wordcloudstop', () => {
                 renderingDone = true
                 console.log('wordcloud rendering done')
+            })
+
+            // 작은 캔버스 클릭시 크게 표시
+            ctx.canvas.addEventListener('click', () => {
+                const dialog = document.createElement('elix-dialog')
+                const closeBtn = document.createElement('button')
+                closeBtn.textContent = 'close'
+                closeBtn.addEventListener('click', () => {
+                    dialog.close()
+                    dialog.remove()
+                })
+
+                dialog.append(renderingCanvas, closeBtn)
+                rootElem.append(dialog)
+                dialog.open()
             })
         }
         view.resultSection.addEventListener('click', getDetail)
@@ -208,6 +245,11 @@ async function showPosMarker() {
     const pos = [userLocation.lat, userLocation.lon]
     L.circleMarker(pos).addTo(map)
     map.flyTo(pos)
+}
+
+// 서비스 워커 등록
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
 }
 
 showPosMarker()
